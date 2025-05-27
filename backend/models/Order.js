@@ -13,7 +13,10 @@ const orderSchema = new mongoose.Schema({
     type: String,
     enum: ['Pending', 'Confirmed', 'Delivered', 'Cancelled'],
     default: 'Pending'
-  }
+  },
+  paymentStatus: { type: String, default: 'Not Paid' }, 
+  paymentId: { type: String },                          
+  paidAt: { type: Date }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Order', orderSchema);
