@@ -8,6 +8,7 @@ const dishRoutes = require('./routes/dishRoutes');
 const cartRoutes = require('./routes/cartRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
+const profileRoutes = require('./routes/profileRoutes');
 
 const app = express();
 
@@ -20,6 +21,7 @@ app.use('/api/dishes', dishRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/profile', profileRoutes);
 
 app.get('/', (req, res) => {
   res.send('QuickBite Backend Running');
