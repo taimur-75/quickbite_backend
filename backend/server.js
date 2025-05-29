@@ -11,6 +11,8 @@ const cartRoutes = require('./routes/cartRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const profileRoutes = require('./routes/profileRoutes');
+const adminUserRoutes = require('./routes/adminUserRoutes');
+const adminOrderRoutes = require('./routes/adminOrderRoutes');
 
 const app = express();
 
@@ -27,6 +29,8 @@ app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/admin-users', adminUserRoutes);
+app.use('/api/admin-orders', adminOrderRoutes);
 
 app.get('/', (req, res) => {
   res.send('QuickBite Backend Running');
