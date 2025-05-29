@@ -1,9 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middlewares/authMiddleware');
-const { createOrUpdateProfile, getProfile } = require('../controllers/profileController');
+const upload = require('../middlewares/upload');
+const {
+  getProfile,
+  updateProfile,
+  uploadProfilePicture
+} = require('../controllers/profileController');
 
-router.post('/', protect, createOrUpdateProfile);
-router.get('/', protect, getProfile);
+router.get('/me', protect, getProfile);
+router.put('/update', protect, updateProfile);
+router.put('/upload', protect, upload.single('photo'), uploadProfilePicture);
 
 module.exports = router;

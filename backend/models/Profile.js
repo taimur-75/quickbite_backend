@@ -11,7 +11,9 @@ const addressSchema = new mongoose.Schema({
 const profileSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
   phone: String,
-  address: addressSchema
+  address: addressSchema,
+  bio: String,
+  avatar: String
 }, { timestamps: true });
 
 module.exports = mongoose.model('Profile', profileSchema);
