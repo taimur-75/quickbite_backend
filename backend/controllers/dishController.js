@@ -11,20 +11,26 @@ const createDish = async (req, res) => {
   }
 };
 
-// Read All — With search by name or category
+// Read All — With search + filter by name, category, price
 const getAllDishes = async (req, res) => {
   try {
-    const { search } = req.query;
+    const { search, minPrice, maxPrice } = req.query;
 
-    // If search is provided, build a query
     let query = {};
+
+    // 🔍 Search by name or category
     if (search) {
-      query = {
-        $or: [
-          { name: { $regex: search, $options: 'i' } },       // Case-insensitive search on name
-          { category: { $regex: search, $options: 'i' } }    // Case-insensitive search on category
-        ]
-      };
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { category: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    // 💰 Filter by price range
+    if (minPrice || maxPrice) {
+      query.price = {};
+      if (minPrice) query.price.$gte = parseFloat(minPrice);
+      if (maxPrice) query.price.$lte = parseFloat(maxPrice);
     }
 
     const dishes = await Dish.find(query);
