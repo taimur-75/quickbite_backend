@@ -3,10 +3,11 @@
 const User = require('../models/User');
 const Profile = require('../models/Profile'); // ✅ Needed to join with city info
 
-// Get all users with optional filters: search (name/email) + city
+// Get all users with optional filters: search (name/email) + city + pagination
 const getAllUsers = async (req, res) => {
   try {
-    const { search, city } = req.query;
+    const { search, city, page = 1, limit = 10 } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const matchStage = {};
 
@@ -39,6 +40,12 @@ const getAllUsers = async (req, res) => {
       });
     }
 
+    const totalCountPipeline = [...pipeline, { $count: 'total' }];
+    const totalCountResult = await User.aggregate(totalCountPipeline);
+    const total = totalCountResult[0]?.total || 0;
+
+    pipeline.push({ $skip: skip }, { $limit: parseInt(limit) });
+
     // 🛑 Exclude password before returning
     pipeline.push({
       $project: {
@@ -49,7 +56,13 @@ const getAllUsers = async (req, res) => {
     });
 
     const users = await User.aggregate(pipeline);
-    res.status(200).json(users);
+    
+    res.status(200).json({
+      total,
+      page: parseInt(page),
+      totalPages: Math.ceil(total / limit),
+      data: users
+    });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
