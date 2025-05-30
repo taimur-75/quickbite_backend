@@ -11,10 +11,23 @@ const createDish = async (req, res) => {
   }
 };
 
-// Read All
+// Read All — With search by name or category
 const getAllDishes = async (req, res) => {
   try {
-    const dishes = await Dish.find();
+    const { search } = req.query;
+
+    // If search is provided, build a query
+    let query = {};
+    if (search) {
+      query = {
+        $or: [
+          { name: { $regex: search, $options: 'i' } },       // Case-insensitive search on name
+          { category: { $regex: search, $options: 'i' } }    // Case-insensitive search on category
+        ]
+      };
+    }
+
+    const dishes = await Dish.find(query);
     res.json(dishes);
   } catch (err) {
     res.status(500).json({ error: err.message });
