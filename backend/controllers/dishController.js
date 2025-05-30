@@ -11,10 +11,10 @@ const createDish = async (req, res) => {
   }
 };
 
-// Read All — With search + filter by name, category, price
+// Read All — With search + price filter + pagination
 const getAllDishes = async (req, res) => {
   try {
-    const { search, minPrice, maxPrice } = req.query;
+    const { search, minPrice, maxPrice, page = 1, limit = 10 } = req.query;
 
     let query = {};
 
@@ -33,8 +33,16 @@ const getAllDishes = async (req, res) => {
       if (maxPrice) query.price.$lte = parseFloat(maxPrice);
     }
 
-    const dishes = await Dish.find(query);
-    res.json(dishes);
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const total = await Dish.countDocuments(query);
+    const dishes = await Dish.find(query).skip(skip).limit(parseInt(limit));
+
+    res.json({
+      total,
+      page: parseInt(page),
+      totalPages: Math.ceil(total / limit),
+      data: dishes
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
