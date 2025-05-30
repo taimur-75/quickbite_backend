@@ -1,23 +1,54 @@
 // controllers/adminUserController.js
 
 const User = require('../models/User');
+const Profile = require('../models/Profile'); // ✅ Needed to join with city info
 
-// Get all users (with optional search)
+// Get all users with optional filters: search (name/email) + city
 const getAllUsers = async (req, res) => {
   try {
-    const searchQuery = req.query.search;
+    const { search, city } = req.query;
 
-    // 🔍 Build search filter if search query exists
-    const filter = searchQuery
-      ? {
-          $or: [
-            { name: { $regex: searchQuery, $options: 'i' } },
-            { email: { $regex: searchQuery, $options: 'i' } }
-          ]
+    const matchStage = {};
+
+    // 🔍 Filter by search on name or email
+    if (search) {
+      matchStage.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    // 🔄 Mongoose aggregation to join with Profile and filter by city
+    const pipeline = [
+      { $match: matchStage }, // Match on User collection
+      {
+        $lookup: {
+          from: 'profiles', // 👈 must match the actual MongoDB collection name
+          localField: '_id',
+          foreignField: 'user',
+          as: 'profile'
         }
-      : {};
+      },
+      { $unwind: { path: '$profile', preserveNullAndEmptyArrays: true } }, // allows users without profiles
+    ];
 
-    const users = await User.find(filter).select('-password');
+    // 🏙️ If city filter exists, apply match on joined profile.city
+    if (city) {
+      pipeline.push({
+        $match: { 'profile.address.city': { $regex: city, $options: 'i' } }
+      });
+    }
+
+    // 🛑 Exclude password before returning
+    pipeline.push({
+      $project: {
+        password: 0,
+        'profile._id': 0,
+        'profile.__v': 0
+      }
+    });
+
+    const users = await User.aggregate(pipeline);
     res.status(200).json(users);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
