@@ -2,10 +2,22 @@
 
 const User = require('../models/User');
 
-// Get all users
+// Get all users (with optional search)
 const getAllUsers = async (req, res) => {
   try {
-    const users = await User.find().select('-password');
+    const searchQuery = req.query.search;
+
+    // 🔍 Build search filter if search query exists
+    const filter = searchQuery
+      ? {
+          $or: [
+            { name: { $regex: searchQuery, $options: 'i' } },
+            { email: { $regex: searchQuery, $options: 'i' } }
+          ]
+        }
+      : {};
+
+    const users = await User.find(filter).select('-password');
     res.status(200).json(users);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });

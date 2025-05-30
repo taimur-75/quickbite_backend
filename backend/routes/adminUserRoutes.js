@@ -10,7 +10,7 @@ const {
 } = require('../controllers/adminUserController');
 
 // Admin routes
-router.get('/', protect, isAdmin, getAllUsers);
+router.get('/', protect, isAdmin, getAllUsers);// 🆗 Handles optional search query
 router.delete('/:id', protect, isAdmin, deleteUser);
 router.put('/:id/toggle-admin', protect, isAdmin, toggleAdminStatus);
 
