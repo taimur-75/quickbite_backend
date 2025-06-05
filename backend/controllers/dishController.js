@@ -16,7 +16,7 @@ const getAllDishes = async (req, res) => {
   try {
     const { search, minPrice, maxPrice, page = 1, limit = 10 } = req.query;
 
-    let query = {};
+    let query = { isDeleted: false }; // Show only non-deleted dishes
 
     // 🔍 Search by name or category
     if (search) {
@@ -73,9 +73,57 @@ const updateDish = async (req, res) => {
 // Delete
 const deleteDish = async (req, res) => {
   try {
-    const dish = await Dish.findByIdAndDelete(req.params.id);
+    const dish = await Dish.findByIdAndUpdate(
+      req.params.id,
+      { isDeleted: true }, // Mark as deleted
+      { new: true }
+    );
+
     if (!dish) return res.status(404).json({ msg: 'Dish not found' });
     res.json({ msg: 'Dish deleted' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// 🔁 Restore a soft-deleted dish
+const restoreDish = async (req, res) => {
+  try {
+    const dish = await Dish.findByIdAndUpdate(
+      req.params.id,
+      { isDeleted: false },
+      { new: true } // Return the updated dish
+    );
+
+    if (!dish) return res.status(404).json({ message: 'Dish not found' });
+    res.status(200).json({ message: 'Dish restored successfully', dish });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// 💀 Permanently delete a dish (hard delete)
+const hardDeleteDish = async (req, res) => {
+  try {
+    const deleted = await Dish.findByIdAndDelete(req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ message: 'Dish not found' });
+    }
+    res.status(200).json({ message: 'Dish permanently deleted' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// 📦 Get all soft-deleted dishes
+const getSoftDeletedDishes = async (req, res) => {
+  try {
+    const deletedDishes = await Dish.find({ isDeleted: true });
+
+    res.status(200).json({
+      total: deletedDishes.length,
+      data: deletedDishes
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -86,5 +134,8 @@ module.exports = {
   getAllDishes,
   getDishById,
   updateDish,
-  deleteDish
+  deleteDish,
+  restoreDish,
+  hardDeleteDish,
+  getSoftDeletedDishes
 };
