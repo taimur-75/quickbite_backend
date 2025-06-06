@@ -2,6 +2,7 @@
 
 const User = require('../models/User');
 const Profile = require('../models/Profile'); // ✅ Needed to join with city info
+const mongoose = require('mongoose');
 
 // Get all users with optional filters: search (name/email) + city + pagination
 const getAllUsers = async (req, res) => {
@@ -98,8 +99,45 @@ const toggleAdminStatus = async (req, res) => {
   }
 };
 
+// Get a single user by ID (with profile info)
+const getUserById = async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    const user = await User.aggregate([
+      { $match: { _id: new mongoose.Types.ObjectId(userId) } },
+      {
+        $lookup: {
+          from: 'profiles',
+          localField: '_id',
+          foreignField: 'user',
+          as: 'profile'
+        }
+      },
+      { $unwind: { path: '$profile', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          password: 0, // Exclude password
+          'profile._id': 0,
+          'profile.__v': 0
+        }
+      }
+    ]);
+
+    if (user.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.status(200).json(user[0]); // Return first result (only one user)
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+
 module.exports = {
   getAllUsers,
   deleteUser,
   toggleAdminStatus,
+  getUserById
 };
