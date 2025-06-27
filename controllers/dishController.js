@@ -35,7 +35,30 @@ const getAllDishes = async (req, res) => {
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const total = await Dish.countDocuments(query);
-    const dishes = await Dish.find(query).skip(skip).limit(parseInt(limit));
+    let dishes = await Dish.find(query).skip(skip).limit(parseInt(limit));
+
+    // --- IMPORTANT MODIFICATION START ---
+        // Define your backend's base URL. This should match where your backend is running.
+        const backendBaseUrl = process.env.BACKEND_API_BASE_URL;// Changed to use environment variable
+        // Make sure this matches your backend's URL/port
+        
+        const imageProxyPath = '/api/image_proxy'; // Your image proxy endpoint prefix
+
+        dishes = dishes.map(dish => {
+            // Assuming dish.image now directly holds the Google Drive file ID
+            if (dish.image) {
+                // Trim any potential whitespace just in case
+                const fileId = String(dish.image).trim();
+
+                // Construct the proxy URL directly
+                dish.image = `${backendBaseUrl}${imageProxyPath}/${fileId}`;
+            } else {
+                // Assign a default placeholder if the 'image' field is missing for a dish
+                dish.image = null;
+            }
+            return dish;
+        });
+        // --- IMPORTANT MODIFICATION END ---
 
     res.json({
       total,
