@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
 const connectDB = require('./config/db');
+const bodyParser = require('body-parser');
 
 const authRoutes = require('./routes/authRoutes');
 const dishRoutes = require('./routes/dishRoutes');
@@ -21,14 +22,24 @@ const app = express();
 
 connectDB();
 
-app.use(express.json());
-
 const FRONTEND_URL = process.env.FRONTEND_URL;
+
+const webhookRouter = express.Router();
+webhookRouter.use('/', paymentRoutes); // Route the webhook path to the payment router
+
+app.post(
+    '/api/payments/webhook', 
+    bodyParser.raw({ type: 'application/json' }), 
+    webhookRouter
+);
 
 app.use(cors({
     origin: FRONTEND_URL, // Use the environment variable here
     credentials: true // Keep this if your frontend sends cookies/auth headers
 }));
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
