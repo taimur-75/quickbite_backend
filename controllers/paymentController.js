@@ -1,6 +1,7 @@
 const Order = require('../models/Order');
-const Stripe = require('stripe');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
+//----------------------------------------------------------------------------------------
 // Simulated Payment Handler
 /*const makePayment = async (req, res) => {
   const { orderId } = req.params;
@@ -26,27 +27,102 @@ const Stripe = require('stripe');
     res.status(500).json({ msg: 'Server error', error: err.message });
   }
 };*/
+//--------------------------------------------------------------------------------------------
 
 
 
+// --- Placeholder for Checkout Session Creation ---
+// You will need to ensure this function correctly includes the orderId 
+// in the session metadata, e.g., metadata: { orderId: newOrder._id.toString() }
+exports.createCheckoutSession = async (req, res) => {
+    // ... Your existing logic for creating a Stripe checkout session ...
+    // NOTE: Ensure you add metadata: { orderId: order._id.toString() } here!
+    res.status(501).json({ message: "Checkout session creation logic not implemented here for brevity." });
+};
 
+// --- Webhook Handler with Comprehensive Error Logging ---
+exports.handleStripeWebhook = async (req, res) => {
+    // 1. Initialize variables and log reception
+    const sig = req.headers['stripe-signature'];
+    const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    
+    console.log(`\n--- Webhook received at ${new Date().toISOString()} ---`);
+    console.log(`Event signature: ${sig.substring(0, 30)}...`);
+    
+    let event;
+    
+    // 2. CRITICAL STEP: Signature Verification
+    try {
+        // req.body MUST be the raw buffer here
+        event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+        console.log(`✅ Webhook Signature Verified for event ID: ${event.id}`);
+    } catch (err) {
+        // If verification fails, log the specific error and return 400 immediately.
+        console.error(`❌ CRITICAL FAILURE: Webhook signature verification failed:`, err.message);
+        // This is where a STRIPE_WEBHOOK_SECRET mismatch causes failure.
+        return res.status(400).send(`Webhook Error: Signature verification failed: ${err.message}`);
+    }
 
+    const session = event.data.object;
+    
+    // 3. Handle specific event types (Fulfillment Logic)
+    switch (event.type) {
+        case 'checkout.session.completed':
+            console.log(`Handling Event Type: ${event.type}. Session ID: ${session.id}`);
 
+            // 3a. Metadata Check
+            const orderId = session.metadata?.orderId;
+            if (!orderId) {
+                console.error("❌ Fulfillment Error: Missing 'orderId' in session metadata. Cannot process.");
+                // Return 200, as the event is fine, but our application data is unusable.
+                return res.status(200).json({ received: true, message: "Missing Order ID in metadata." });
+            }
+            console.log(`Attempting to update Order ID: ${orderId}`);
 
+            if (session.payment_status !== 'paid') {
+                console.warn(`⚠️ Warning: Session status is '${session.payment_status}'. Expected 'paid'. Skipping update.`);
+                // Still acknowledge the event, we only care about 'paid' status.
+                return res.status(200).json({ received: true });
+            }
 
+            // 3b. Database Update (Atomic Operation)
+            try {
+                // Use findByIdAndUpdate for atomic and simpler update logic
+                const updatedOrder = await Order.findByIdAndUpdate(
+                    orderId,
+                    { 
+                        paymentStatus: 'Paid',
+                        paymentId: session.payment_intent, 
+                        paidAt: new Date(),
+                        status: 'Confirmed', 
+                    },
+                    { new: true, runValidators: true } // Return the updated document, run Mongoose validators
+                );
 
+                if (updatedOrder) {
+                    console.log(`✅ DB Success: Order ${orderId} status updated to Paid/Confirmed.`);
+                } else {
+                    console.error(`❌ DB Error: Order with ID ${orderId} not found in database for update. (Might have been deleted or wrong ID)`);
+                }
 
+            } catch (dbError) {
+                // Log detailed database error (e.g., Mongoose validation failure)
+                console.error(`❌ DB Fulfillment Error (Order ${orderId}):`, dbError.message);
+                // IMPORTANT: Do NOT return 500. Log the failure internally, but tell Stripe we received it (200) 
+                // to prevent it from retrying the event infinitely.
+            }
+            break;
 
+        default:
+            // Log any other received events for visibility
+            console.log(`⚠️ Unhandled event type received: ${event.type}`);
+    }
 
-// Initialize Stripe instance (ensures STRIPE_SECRET_KEY is in your .env)
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-
-/**
- * @desc Creates a Stripe Checkout Session ID and returns it to the client.
- * @route POST /api/payments/create-checkout-session (via paymentRoutes)
- * @access Private/Protected
- */
-
+    // 4. Acknowledge Receipt (Final Step)
+    // Always return 200 to Stripe to prevent retries, unless the signature verification failed (Step 2).
+    res.status(200).json({ received: true });
+    console.log(`--- Webhook processing finished. Response sent: 200 OK ---\n`);
+};
 
 const createCheckoutSession = async (req, res) => {
     const { orderId } = req.body; 
