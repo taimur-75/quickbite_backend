@@ -1,34 +1,38 @@
 const Cart = require('../models/Cart');
 const Dish = require('../models/Dish');
 
-// Add or update an item in the cart
+// Add or update multiple items in the cart
 const addToCart = async (req, res) => {
   const userId = req.user._id;
-  const { dishId, quantity } = req.body;
+  const { items } = req.body; // Expect an array
 
-  if (!dishId || !quantity) {
-    return res.status(400).json({ msg: 'Dish ID and quantity are required' });
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ msg: 'Items array is required' });
   }
 
   try {
-    const dish = await Dish.findById(dishId);
-    if (!dish) {
-      return res.status(404).json({ msg: 'Dish not found' });
-    }
-
     let cart = await Cart.findOne({ user: userId });
 
     if (!cart) {
-      cart = new Cart({
-        user: userId,
-        items: [{ dish: dishId, quantity }]
-      });
-    } else {
-      const itemIndex = cart.items.findIndex(item => item.dish.toString() === dishId);
-      if (itemIndex > -1) {
-        cart.items[itemIndex].quantity += quantity;
+      // create a new cart
+      cart = new Cart({ user: userId, items: [] });
+    }
+
+    for (const item of items) {
+      const { dish, quantity } = item;
+
+      if (!dish || !quantity) continue; // skip invalid
+
+      const dishExists = await Dish.findById(dish);
+      if (!dishExists) continue; // skip if dish not found
+
+      const existingIndex = cart.items.findIndex(i => i.dish.toString() === dish);
+      if (existingIndex > -1) {
+        // update quantity
+        cart.items[existingIndex].quantity = quantity;
       } else {
-        cart.items.push({ dish: dishId, quantity });
+        // add new item
+        cart.items.push({ dish, quantity });
       }
     }
 
@@ -53,9 +57,11 @@ const addToCart = async (req, res) => {
 
     res.status(200).json(response);
   } catch (err) {
+    console.error('Cart save error:', err);
     res.status(500).json({ msg: 'Server error', error: err.message });
   }
 };
+
 
 // Get current user's cart with dish details
 const getCart = async (req, res) => {
