@@ -18,19 +18,22 @@ const adminDashboardRoutes = require('./routes/adminDashboardRoutes');
 const ratingRoutes = require('./routes/ratingRoutes');
 const imageProxy = require('./routes/imageProxy');
 
+// CRITICAL: Import the specific webhook handler directly from the controller
+const { handleStripeWebhook } = require('./controllers/paymentController');
+
 const app = express();
 
 connectDB();
 
 const FRONTEND_URL = process.env.FRONTEND_URL;
 
-const webhookRouter = express.Router();
-webhookRouter.use('/', paymentRoutes); // Route the webhook path to the payment router
-
+// --- CRITICAL FIX: ISOLATED WEBHOOK ROUTE (MUST BE FIRST) ---
+// This route uses bodyParser.raw() and must be defined BEFORE the global express.json()
+// to ensure the raw body buffer is available for Stripe signature verification.
 app.post(
     '/api/payments/webhook', 
     bodyParser.raw({ type: 'application/json' }), 
-    webhookRouter
+    handleStripeWebhook
 );
 
 app.use(cors({
@@ -38,16 +41,18 @@ app.use(cors({
     credentials: true // Keep this if your frontend sends cookies/auth headers
 }));
 
+// These parsers apply to all remaining routes (e.g., /api/payments/create-checkout-session)
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// --- API ROUTE MOUNTING ---
 app.use('/api/auth', authRoutes);
 app.use('/api/dishes', dishRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
-app.use('/api/payments', paymentRoutes);
+app.use('/api/payments', paymentRoutes);// This now only handles non-webhook routes.
 app.use('/api/profile', profileRoutes);
 app.use('/api/admin-users', adminUserRoutes);
 app.use('/api/admin-orders', adminOrderRoutes);

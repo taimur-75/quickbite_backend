@@ -10,7 +10,7 @@ const {
 // Simulated payment route
 //router.post('/:orderId/pay', protect, makePayment);
 router.post('/create-checkout-session', protect, createCheckoutSession);
-router.post('/webhook', handleStripeWebhook);
+//router.post('/webhook', handleStripeWebhook);
 
 module.exports = router;
 
