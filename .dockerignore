@@ -1,0 +1,16 @@
+# Dependencies
+node_modules
+
+# Environment & secrets
+.env
+
+# Logs & caches
+npm-debug.log
+yarn-error.log
+
+# Git & Docker metadata
+.git
+.gitignore
+
+# Build artifacts
+dist
