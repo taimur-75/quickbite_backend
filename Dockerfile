@@ -21,4 +21,6 @@ ENV NODE_ENV=production
 ENV PORT=5000
 
 # Start the application
-CMD ["node", "index.js"]
+CMD ["node", "server.js"]
+
+
